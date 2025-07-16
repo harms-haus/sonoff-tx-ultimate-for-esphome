@@ -93,13 +93,6 @@ globals:
   - id: relay_attached
     type: bool[5]
     restore_value: true
-    # initial_value: "{true, true, true, true, true}"
-
-  # saved relay state. still not working tho
-  # - id: relay_state
-  #   type: bool[4]
-  #   restore_value: true
-  #   initial_value: "{true, false, false, false}"
 
   # virtual toggles: 0: nightlight on/off, 1-4: button virtual states, 5: night mode (separate global brightness mode)
   - id: virtual_relay_state
@@ -107,19 +100,19 @@ globals:
     restore_value: true
     initial_value: "{false, false, false, false, false, false}"
 
-  # active colors: 0,1,2: nightlight color, 3-14: button active colors (in groups of 3, for buttons 1-4) 
+  # active colors (0-255): 0,1,2: nightlight color, 3-14: button active colors (in groups of 3, for buttons 1-4) 
   - id: active_color
-    type: int[15]
+    type: unsigned char[15]
     restore_value: true
-    initial_value: "{100,100,100,100,100,100,100,100,100,100,100,100,100,100,100}"
+    initial_value: "{255,255,255,255,255,255,255,255,255,255,255,255,255,255,255}"
 
-  # global brightness settings: 0: off brightness, 1: daytime on brightness, 2: night mode on brightness, 3: touch brightness
+  # global brightness settings (0-255): 0: off brightness, 1: daytime on brightness, 2: night mode on brightness, 3: touch brightness
   - id: global_brightness
-    type: int[4]
+    type: unsigned char[4]
     restore_value: true
-    initial_value: "{0,40,20,40}"
+    initial_value: "{0,110,50,110}"
 
-  # global transition settings: 0: off transition, 1: daytime on transition, 2: night mode on transition, 3: touch-on transition, 4: touch-off transition
+  # global transition settings (0-1000): 0: off transition, 1: daytime on transition, 2: night mode on transition, 3: touch-on transition, 4: touch-off transition
   - id: global_transition_ms
     type: unsigned int[5]
     restore_value: true
@@ -137,46 +130,22 @@ switch:
     platform: gpio
     name: "Button 1 Relay"
     pin: ${relay_1_pin}
-    restore_mode: RESTORE_DEFAULT_OFF
-    on_turn_on:
-      then:
-        # - lambda: !lambda id(relay_state)[0] = true;
-    on_turn_off:
-      then:
-        # - lambda: !lambda id(relay_state)[0] = false;
+    restore_mode: RESTORE_DEFAULT_ON
   - id: relay_2
     platform: gpio
     name: "Button 2 Relay"
     pin: ${relay_2_pin}
-    restore_mode: RESTORE_DEFAULT_OFF
-    on_turn_on:
-      then:
-        # - lambda: !lambda id(relay_state)[1] = true;
-    on_turn_off:
-      then:
-        # - lambda: !lambda id(relay_state)[1] = false;
+    restore_mode: RESTORE_DEFAULT_ON
   - id: relay_3
     platform: gpio
     name: "Button 3 Relay"
     pin: ${relay_3_pin}
-    restore_mode: RESTORE_DEFAULT_OFF
-    on_turn_on:
-      then:
-        # - lambda: !lambda id(relay_state)[2] = true;
-    on_turn_off:
-      then:
-        # - lambda: !lambda id(relay_state)[2] = false;
+    restore_mode: RESTORE_DEFAULT_ON
   - id: relay_4
     platform: gpio
     name: "Button 4 Relay"
     pin: ${relay_4_pin}
-    restore_mode: RESTORE_DEFAULT_OFF
-    on_turn_on:
-      then:
-        # - lambda: !lambda id(relay_state)[3] = true;
-    on_turn_off:
-      then:
-        # - lambda: !lambda id(relay_state)[3] = false;
+    restore_mode: RESTORE_DEFAULT_ON
 
   # vibration motor
   - id: motor
@@ -230,6 +199,7 @@ switch:
   - id: relay_2_detached
     platform: template
     name: "Button 2 Detached"
+    restore_mode: RESTORE_DEFAULT_ON
     lambda: !lambda return !id(relay_attached)[2];
     turn_on_action:
       then:
@@ -246,6 +216,7 @@ switch:
   - id: relay_3_detached
     platform: template
     name: "Button 3 Detached"
+    restore_mode: RESTORE_DEFAULT_ON
     lambda: !lambda return !id(relay_attached)[3];
     turn_on_action:
       then:
@@ -262,6 +233,7 @@ switch:
   - id: relay_4_detached
     platform: template
     name: "Button 4 Detached"
+    restore_mode: RESTORE_DEFAULT_ON
     lambda: !lambda return !id(relay_attached)[4];
     turn_on_action:
       then:
@@ -361,11 +333,11 @@ switch:
     lambda: !lambda return id(virtual_relay_state)[0];
     turn_on_action:
         - lambda: !lambda id(virtual_relay_state)[0] = true;
-        # - script.execute: update_leds
+        - script.execute: update_leds
     turn_off_action:
       then:
         - lambda: !lambda id(virtual_relay_state)[0] = false;
-        # - script.execute: update_leds
+        - script.execute: update_leds
   
   # night mode (more-dim mode)
   - id: night_mode
@@ -520,42 +492,18 @@ light:
         from: 26
         to: 29
     
-  # brightnesses
-  - id: global_button_active_brightness
-    platform: monochromatic
-    name: "Brightness: Button Active"
-    output: global_button_active_brightness_value
-    on_state:
-      then:
-        - script.execute: update_leds
-  - id: global_button_night_brightness
-    platform: monochromatic
-    name: "Brightness: Button Night Mode"
-    output: global_button_night_brightness_value
-    on_state:
-      then:
-        - script.execute: update_leds
-  - id: global_button_press_brightness
-    platform: monochromatic
-    name: "Brightness: Button Press"
-    output: global_button_press_brightness_value
-    on_state:
-      then:
-        - script.execute: update_leds
-
   # nightlight color
   - platform: rgb
     name: "Nightlight Color"
+    restore_mode: RESTORE_DEFAULT_ON
     red: nightlight_active_red
     green: nightlight_active_green
     blue: nightlight_active_blue
-    on_state:
-      then:
-      # - script.execute: update_leds
 
   # button active colors
   - id: button_1_active_color
     platform: rgb
+    restore_mode: RESTORE_DEFAULT_ON
     name: "Button 1 Active Color"
     red: button_1_active_red
     green: button_1_active_green
@@ -567,6 +515,7 @@ light:
             btn: 1
   - id: button_2_active_color
     platform: rgb
+    restore_mode: RESTORE_DEFAULT_ON
     name: "Button 2 Active Color"
     red: button_2_active_red
     green: button_2_active_green
@@ -578,6 +527,7 @@ light:
             btn: 2
   - id: button_3_active_color
     platform: rgb
+    restore_mode: RESTORE_DEFAULT_ON
     name: "Button 3 Active Color"
     red: button_3_active_red
     green: button_3_active_green
@@ -589,6 +539,7 @@ light:
             btn: 3
   - id: button_4_active_color
     platform: rgb
+    restore_mode: RESTORE_DEFAULT_ON
     name: "Button 4 Active Color"
     red: button_4_active_red
     green: button_4_active_green
@@ -614,6 +565,49 @@ number:
       then:
         - lambda: !lambda id(button_touch_decay_ms) = x;
 
+  - id: button_normal_brightness
+    name: "Button Normal Brightness"
+    platform: template
+    unit_of_measurement: "%"
+    mode: SLIDER
+    min_value: 0
+    max_value: 100
+    step: 1
+    device_class: duration
+    lambda: !lambda return id(global_brightness)[1] / 255.0 * 100;
+    set_action:
+      - lambda: !lambda id(global_brightness)[1] = x / 100.0 * 255;
+      - script.execute: update_leds
+
+
+  - id: button_night_brightness
+    name: "Button Night Brightness"
+    platform: template
+    unit_of_measurement: "%"
+    mode: SLIDER
+    min_value: 0
+    max_value: 100
+    step: 1
+    device_class: duration
+    lambda: !lambda return id(global_brightness)[2] / 255.0 * 100;
+    set_action:
+      - lambda: !lambda id(global_brightness)[2] = x / 100.0 * 255;
+      - script.execute: update_leds
+
+  - id: button_touch_brightness
+    name: "Button Touch Brightness"
+    platform: template
+    unit_of_measurement: "%"
+    mode: SLIDER
+    min_value: 0
+    max_value: 100
+    step: 1
+    device_class: duration
+    lambda: !lambda return id(global_brightness)[3] / 255.0 * 100;
+    set_action:
+      - lambda: !lambda id(global_brightness)[3] = x / 100.0 * 255;
+      - script.execute: update_leds
+
 sensor:
   - id: touch_x
     platform: template
@@ -626,107 +620,90 @@ sensor:
       - delta: 0.1
     
 output:
-  # brightnesses
-  - id: global_button_active_brightness_value
-    platform: template
-    type: float
-    write_action: 
-      - lambda: !lambda id(global_brightness)[1] = state * 100;
-  - id: global_button_night_brightness_value
-    platform: template
-    type: float
-    write_action: 
-      - lambda: !lambda id(global_brightness)[2] = state * 100;
-  - id: global_button_press_brightness_value
-    platform: template
-    type: float
-    write_action: 
-      - lambda: !lambda id(global_brightness)[3] = state * 100;
-
   # nightlight color
   - id: nightlight_active_red
     platform: template
     type: float
     write_action: 
-      - lambda: !lambda id(active_color)[0] = state * 100;
+      - lambda: !lambda id(active_color)[0] = state * 255.0;
   - id: nightlight_active_green
     platform: template
     type: float
     write_action: 
-      - lambda: !lambda id(active_color)[1] = state * 100;
+      - lambda: !lambda id(active_color)[1] = state * 255.0;
   - id: nightlight_active_blue
     platform: template
     type: float
     write_action: 
-      - lambda: !lambda id(active_color)[2] = state * 100;
+      - lambda: !lambda id(active_color)[2] = state * 255.0;
 
   # button 1 color
   - id: button_1_active_red
     platform: template
     type: float
     write_action: 
-      - lambda: !lambda id(active_color)[3] = state * 100;
+      - lambda: !lambda id(active_color)[3] = state * 255.0;
   - id: button_1_active_green
     platform: template
     type: float
     write_action: 
-      - lambda: !lambda id(active_color)[4] = state * 100;
+      - lambda: !lambda id(active_color)[4] = state * 255.0;
   - id: button_1_active_blue
     platform: template
     type: float
     write_action: 
-      - lambda: !lambda id(active_color)[5] = state * 100;
+      - lambda: !lambda id(active_color)[5] = state * 255.0;
 
   # button 2 color
   - id: button_2_active_red
     platform: template
     type: float
     write_action: 
-      - lambda: !lambda id(active_color)[6] = state * 100;
+      - lambda: !lambda id(active_color)[6] = state * 255.0;
   - id: button_2_active_green
     platform: template
     type: float
     write_action: 
-      - lambda: !lambda id(active_color)[7] = state * 100;
+      - lambda: !lambda id(active_color)[7] = state * 255.0;
   - id: button_2_active_blue
     platform: template
     type: float
     write_action: 
-      - lambda: !lambda id(active_color)[8] = state * 100;
+      - lambda: !lambda id(active_color)[8] = state * 255.0;
 
   # button 3 color
   - id: button_3_active_red
     platform: template
     type: float
     write_action: 
-      - lambda: !lambda id(active_color)[9] = state * 100;
+      - lambda: !lambda id(active_color)[9] = state * 255.0;
   - id: button_3_active_green
     platform: template
     type: float
     write_action: 
-      - lambda: !lambda id(active_color)[10] = state * 100;
+      - lambda: !lambda id(active_color)[10] = state * 255.0;
   - id: button_3_active_blue
     platform: template
     type: float
     write_action: 
-      - lambda: !lambda id(active_color)[11] = state * 100;
+      - lambda: !lambda id(active_color)[11] = state * 255.0;
 
   # button 4 color
   - id: button_4_active_red
     platform: template
     type: float
     write_action: 
-      - lambda: !lambda id(active_color)[12] = state * 100;
+      - lambda: !lambda id(active_color)[12] = state * 255.0;
   - id: button_4_active_green
     platform: template
     type: float
     write_action: 
-      - lambda: !lambda id(active_color)[13] = state * 100;
+      - lambda: !lambda id(active_color)[13] = state * 255.0;
   - id: button_4_active_blue
     platform: template
     type: float
     write_action: 
-      - lambda: !lambda id(active_color)[14] = state * 100;
+      - lambda: !lambda id(active_color)[14] = state * 255.0;
 
 media_player:
   - id: media_out
@@ -948,6 +925,7 @@ script:
     mode: restart
     then:
       # reset the buttons' states
+      - delay: 100ms
       - script.execute: reset_buttons_leds
 
   - id: global_button_release
@@ -987,10 +965,12 @@ script:
           id: reset_button_leds
           btn: !lambda return btn;
       - lambda: !lambda >
-          if (btn == 1) id(button_1_touch).publish_state(true);
-          if (btn == 2) id(button_2_touch).publish_state(true);
-          if (btn == 3) id(button_3_touch).publish_state(true);
-          if (btn == 4) id(button_4_touch).publish_state(true);
+          auto button_touch = id(button_1_touch);
+          if (btn == 2) button_touch = id(button_2_touch);
+          else if (btn == 3) button_touch = id(button_3_touch);
+          else if (btn == 4) button_touch = id(button_4_touch);
+
+          button_touch->publish_state(true);
       
 
   - id: toggle_button
@@ -1019,6 +999,7 @@ script:
             else if (btn == 4) id(relay_4).turn_off();
           }
           id(virtual_relay_state)[btn] = false;
+      - delay: 100ms
       - script.execute: 
           id: reset_button_leds
           btn: !lambda return btn;
@@ -1037,42 +1018,11 @@ script:
             else if (btn == 4) id(relay_4).turn_on();
           }
           id(virtual_relay_state)[btn] = true;
+      - delay: 100ms
       - script.execute: 
           id: reset_button_leds
           btn: !lambda return btn;
 
-  # ==== RELAYS ====
-  - id: restore_relay_state
-    mode: restart
-    then:
-      # - if:
-      #     condition:
-      #       # - lambda: !lambda return id(relay_state)[0];
-      #     then:
-      #       - switch.turn_on: relay_1
-      #     else:
-      #       - switch.turn_off: relay_1
-      # - if:
-      #     condition:
-      #       # - lambda: !lambda return id(relay_state)[1];
-      #     then:
-      #       - switch.turn_on: relay_2
-      #     else:
-      #       - switch.turn_off: relay_2
-      # - if:
-      #     condition:
-      #       # - lambda: !lambda return id(relay_state)[2];
-      #     then:
-      #       - switch.turn_on: relay_3
-      #     else:
-      #       - switch.turn_off: relay_3
-      # - if:
-      #     condition:
-      #       # - lambda: !lambda return id(relay_state)[3];
-      #     then:
-      #       - switch.turn_on: relay_4
-      #     else:
-      #       - switch.turn_off: relay_4
 
   # ==== EVENTS ====
   - id: send_event
@@ -1128,7 +1078,7 @@ script:
       transition_type: int
     then: 
       - lambda: !lambda >
-          ESP_LOGD("study-switch.set_button_leds", "transition_type: %d", transition_type);
+          ESP_LOGD("study-switch.set_button_leds", "button: %d, transition_type: %d", btn, transition_type);
           auto relay_att = id(relay_attached)[btn];
           auto virtual_on = id(virtual_relay_state)[btn];
 
@@ -1144,37 +1094,30 @@ script:
 
           if (transition_type < 0) {
             if (is_on) {
-              transition_type = 2;
-              if (id(night_mode).state) transition_type = 3;
+              transition_type = 1;
+              if (id(night_mode).state) transition_type = 2;
             } else {
               transition_type = 0;
             }
           }
           ESP_LOGD("study-switch.set_button_leds", "transition_type: %d", transition_type);
 
-          float brightness = id(global_brightness)[transition_type] / 100.0;
-          int transition_ms = id(global_transition_ms)[transition_type] / 100.0;
+          auto brightness_level = id(global_brightness)[transition_type] / 255.0;
+          auto transition_ms = id(global_transition_ms)[transition_type];
 
-          ESP_LOGD("study-switch.set_button_leds", "brightness: %f, transition_ms: %d", brightness, transition_ms);
+          ESP_LOGD("study-switch.set_button_leds", "brightness: %f, transition_ms: %d", brightness_level, transition_ms);
 
-          auto call = id(button_1_leds).turn_on();
-          if (btn == 1) call = id(button_1_leds).turn_on();
-          else if (btn == 2) call = id(button_2_leds).turn_on();
-          else if (btn == 3) call = id(button_3_leds).turn_on();
-          else if (btn == 4) call = id(button_4_leds).turn_on();
-
-          float r = id(active_color)[btn * 3 + 0] / 100.0;
-          float g = id(active_color)[btn * 3 + 1] / 100.0;
-          float b = id(active_color)[btn * 3 + 2] / 100.0;
+          float r = id(active_color)[btn * 3 + 0];
+          float g = id(active_color)[btn * 3 + 1];
+          float b = id(active_color)[btn * 3 + 2];
           ESP_LOGD("study-switch.set_button_leds", "r: %f, g: %f, b: %f", r, g, b);
 
           // set parameters (optional)
-          call.set_transition_length(transition_ms); // in ms
-          call.set_brightness(brightness); // 1.0 is full brightness
-          call.set_color_mode(ColorMode::RGB);
-          call.set_rgb(r, g, b);
-          // perform action:
-          call.perform();
+          
+          if (btn == 1) id(button_1_leds).turn_on().set_transition_length(transition_ms).set_brightness(brightness_level).set_color_mode(ColorMode::RGB).set_rgb(r / 255.0, g / 255.0, b / 255.0).perform();
+          else if (btn == 2) id(button_2_leds).turn_on().set_transition_length(transition_ms).set_brightness(brightness_level).set_color_mode(ColorMode::RGB).set_rgb(r / 255.0, g / 255.0, b / 255.0).perform();
+          else if (btn == 3) id(button_3_leds).turn_on().set_transition_length(transition_ms).set_brightness(brightness_level).set_color_mode(ColorMode::RGB).set_rgb(r / 255.0, g / 255.0, b / 255.0).perform();
+          else if (btn == 4) id(button_4_leds).turn_on().set_transition_length(transition_ms).set_brightness(brightness_level).set_color_mode(ColorMode::RGB).set_rgb(r / 255.0, g / 255.0, b / 255.0).perform();
 
-          ESP_LOGD("study-switch.set_button_leds", "Done");
+          ESP_LOGD("study-switch.set_button_leds", "Done"); 
 
