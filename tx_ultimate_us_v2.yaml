@@ -83,7 +83,7 @@ web_server:
 external_components:
   - source:  
       type: git
-      url: https://github.com/SmartHome-yourself/sonoff-tx-ultimate-for-esphome
+      url: https://github.com/harms-haus/sonoff-tx-ultimate-for-esphome
       ref: main
     components: [tx_ultimate_touch]
 
@@ -618,7 +618,29 @@ sensor:
     accuracy_decimals: 1
     filters:
       - delta: 0.1
-    
+  - id: touch_state
+    platform: template
+    name: Touch State
+    icon: "mdi:state-machine"
+
+text_sensor:
+  - id: button_1_touch
+    platform: template
+    name: "Button 1 Touch"
+    icon: "mdi:gesture-tap"
+  - id: button_2_touch
+    platform: template
+    name: "Button 2 Touch"
+    icon: "mdi:gesture-tap"
+  - id: button_3_touch
+    platform: template
+    name: "Button 3 Touch"
+    icon: "mdi:gesture-tap"
+  - id: button_4_touch
+    platform: template
+    name: "Button 4 Touch"
+    icon: "mdi:gesture-tap"
+
 output:
   # nightlight color
   - id: nightlight_active_red
@@ -738,38 +760,6 @@ uart:
       - lambda: UARTDebug::log_hex(direction, bytes, ' ');
 
 binary_sensor:
-  - id: button_1_touch
-    platform: template
-    name: "Button 1 Touch"
-    on_press:
-      - delay: !lambda return id(button_touch_decay_ms);
-      - binary_sensor.template.publish:
-          id: swipe_left
-          state: OFF
-  - id: button_2_touch
-    platform: template
-    name: "Button 2 Touch"
-    on_press:
-      - delay: !lambda return id(button_touch_decay_ms);
-      - binary_sensor.template.publish:
-          id: swipe_left
-          state: OFF
-  - id: button_3_touch
-    platform: template
-    name: "Button 3 Touch"
-    on_press:
-      - delay: !lambda return id(button_touch_decay_ms);
-      - binary_sensor.template.publish:
-          id: swipe_left
-          state: OFF
-  - id: button_4_touch
-    platform: template
-    name: "Button 4 Touch"
-    on_press:
-      - delay: !lambda return id(button_touch_decay_ms);
-      - binary_sensor.template.publish:
-          id: swipe_left
-          state: OFF
   - id: swipe_left
     platform: template
     name: "Swipe left"
@@ -797,15 +787,6 @@ binary_sensor:
           id: multi_touch
           state: OFF
 
-  - id: long_press
-    platform: template
-    name: "Long Press"
-    on_press:
-      - delay: !lambda return id(button_touch_decay_ms);
-      - binary_sensor.template.publish:
-          id: long_press
-          state: OFF
-
 tx_ultimate_touch:
   id: tx_touch
   uart: my_uart
@@ -813,68 +794,78 @@ tx_ultimate_touch:
   on_press:
     - then:
       - lambda: !lambda id(touch_x).publish_state(touch.x);
+      - lambda: !lambda id(touch_state).publish_state(touch.state);
       # - lambda: !lambda id(touch_y).publish_state(touch.y);
       - if:
           condition:
             lambda: !lambda return touch.x <= 2;
           then:
             - script.execute: 
-                id: global_button_press
+                id: global_button_event
                 btn: 1
+                eventtype: "press"
           else:
             - if:
                 condition:
                   lambda: !lambda return touch.x <= 5;
                 then:
                   - script.execute: 
-                      id: global_button_press
+                      id: global_button_event
                       btn: 2
+                      eventtype: "press"
                 else:
                   - if:
                       condition:
                         lambda: !lambda return touch.x <= 8;
                       then:
                         - script.execute: 
-                            id: global_button_press
+                            id: global_button_event
                             btn: 3
+                            eventtype: "press"
                       else:
                         - script.execute: 
-                            id: global_button_press
+                            id: global_button_event
                             btn: 4
+                            eventtype: "press"
       - lambda: !lambda >
           ESP_LOGD("tx_ultimate_touch.on_press", "Touch Position: %d / State: %d", touch.x, touch.state);
 
   on_release:
     - then:
       - lambda: !lambda id(touch_x).publish_state(touch.x);
+      - lambda: !lambda id(touch_state).publish_state(touch.state);
       # - lambda: !lambda id(touch_y).publish_state(touch.y);
       - if:
           condition:
             lambda: !lambda return touch.x <= 2;
           then:
             - script.execute: 
-                id: global_button_release
+                id: global_button_event
                 btn: 1
+                eventtype: "release"
           else:
             - if:
                 condition:
                   lambda: !lambda return touch.x <= 5;
                 then:
                   - script.execute: 
-                      id: global_button_release
+                      id: global_button_event
                       btn: 2
+                      eventtype: "release"
                 else:
                   - if:
                       condition:
                         lambda: !lambda return touch.x <= 8;
                       then:
                         - script.execute: 
-                            id: global_button_release
+                            id: global_button_event
                             btn: 3
+                            eventtype: "release"
                       else:
                         - script.execute: 
-                            id: global_button_release
+                            id: global_button_event
                             btn: 4
+                            eventtype: "release"
       - switch.turn_on: motor
       - lambda: !lambda >
           ESP_LOGD("tx_ultimate_touch.on_release", "Release Position: %d / State: %d", touch.x, touch.state);
@@ -882,6 +873,7 @@ tx_ultimate_touch:
   on_swipe_left:
     - then:
       - lambda: !lambda id(touch_x).publish_state(touch.x);
+      - lambda: !lambda id(touch_state).publish_state(touch.state);
       # - lambda: !lambda id(touch_y).publish_state(touch.y);
       - binary_sensor.template.publish:
           id: swipe_left
@@ -892,6 +884,7 @@ tx_ultimate_touch:
   on_swipe_right:
     - then:
       - lambda: !lambda id(touch_x).publish_state(touch.x);
+      - lambda: !lambda id(touch_state).publish_state(touch.state);
       # - lambda: !lambda id(touch_y).publish_state(touch.y);
       - binary_sensor.template.publish:
           id: swipe_right
@@ -902,6 +895,7 @@ tx_ultimate_touch:
   on_full_touch_release:
     - then:
       - lambda: !lambda id(touch_x).publish_state(touch.x);
+      - lambda: !lambda id(touch_state).publish_state(touch.state);
       # - lambda: !lambda id(touch_y).publish_state(touch.y);
       - binary_sensor.template.publish:
           id: multi_touch
@@ -909,13 +903,45 @@ tx_ultimate_touch:
       - lambda: !lambda >
           ESP_LOGD("tx_ultimate_touch.on_full_touch_release", "Full Touch Release Position: %d / State: %d", touch.x, touch.state);
 
-  on_long_touch_release:
+  on_long_touch_release:      
     - then:
       - lambda: !lambda id(touch_x).publish_state(touch.x);
+      - lambda: !lambda id(touch_state).publish_state(touch.state);
       # - lambda: !lambda id(touch_y).publish_state(touch.y);
-      - binary_sensor.template.publish:
-          id: long_press
-          state: ON
+      - if:
+          condition:
+            lambda: !lambda return touch.x <= 2;
+          then:
+            - script.execute: 
+                id: global_button_event
+                btn: 1
+                eventtype: "long_release"
+          else:
+            - if:
+                condition:
+                  lambda: !lambda return touch.x <= 5;
+                then:
+                  - script.execute: 
+                      id: global_button_event
+                      btn: 2
+                      eventtype: "long_release"
+                else:
+                  - if:
+                      condition:
+                        lambda: !lambda return touch.x <= 8;
+                      then:
+                        - script.execute: 
+                            id: global_button_event
+                            btn: 3
+                            eventtype: "long_release"
+                      else:
+                        - script.execute: 
+                            id: global_button_event
+                            btn: 4
+                            eventtype: "long_release"
+      - switch.turn_on: motor
+      - lambda: !lambda >
+          ESP_LOGD("tx_ultimate_touch.on_release", "Release Position: %d / State: %d", touch.x, touch.state);
       - lambda: !lambda >
           ESP_LOGD("tx_ultimate_touch.on_long_touch_release", "Long Touch Release Position: %d / State: %d", touch.x, touch.state);
 
@@ -928,49 +954,27 @@ script:
       - delay: 100ms
       - script.execute: reset_buttons_leds
 
-  - id: global_button_release
+  - id: global_button_event
     mode: restart
     parameters:
       btn: int
+      eventtype: string
     then:
       - switch.turn_on:
           id: motor
       - script.execute:
           id: send_event
           domain: "button"
-          eventtype: "release"
+          eventtype: !lambda return eventtype;
           index: !lambda return btn;
       - script.execute:
           id: reset_button_leds
           btn: !lambda return btn;
       - lambda: !lambda >
-          if (btn == 1) id(button_1_touch).publish_state(false);
-          if (btn == 2) id(button_2_touch).publish_state(false);
-          if (btn == 3) id(button_3_touch).publish_state(false);
-          if (btn == 4) id(button_4_touch).publish_state(false);
-  - id: global_button_press
-    mode: restart
-    parameters:
-      btn: int
-    then:
-      - script.execute:
-          id: toggle_button
-          btn: !lambda return btn;
-      - script.execute:
-          id: send_event
-          domain: "button"
-          eventtype: "press"
-          index: !lambda return btn;
-      - script.execute:
-          id: reset_button_leds
-          btn: !lambda return btn;
-      - lambda: !lambda >
-          auto button_touch = id(button_1_touch);
-          if (btn == 2) button_touch = id(button_2_touch);
-          else if (btn == 3) button_touch = id(button_3_touch);
-          else if (btn == 4) button_touch = id(button_4_touch);
-
-          button_touch->publish_state(true);
+          if (btn == 1) id(button_1_touch).publish_state(eventtype);
+          if (btn == 2) id(button_2_touch).publish_state(eventtype);
+          if (btn == 3) id(button_3_touch).publish_state(eventtype);
+          if (btn == 4) id(button_4_touch).publish_state(eventtype);
       
 
   - id: toggle_button
