@@ -1,0 +1,1403 @@
+substitutions:
+  name: "tx-ultimate"
+  friendly_name: "tx-ultimate"
+  
+  api_key: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+  vibra_time: 50ms
+
+  relay_1_pin: GPIO18
+  relay_2_pin: GPIO17
+  relay_3_pin: GPIO27
+  relay_4_pin: GPIO23
+
+  vibra_motor_pin: GPIO21
+  pa_power_pin: GPIO26
+
+  led_pin: GPIO13
+  status_led_pin: GPIO33
+
+  uart_tx_pin: GPIO19
+  uart_rx_pin: GPIO22
+
+  audio_lrclk_pin: GPIO4
+  audio_bclk_pin: GPIO2
+  audio_sdata_pin: GPIO15
+
+  touchpanel_power_pin: GPIO5
+  
+  fallback_ap_ssid: "txultimate-ap"
+  fallback_ap_password: "Tk3375kUzefs"
+
+  ota_platform: "esphome"
+  ota_password: "xxxxxxxxx"
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+  project:
+    name: smarthomeyourself.tx_ultimate
+    version: "1.0"
+
+  on_boot:
+    priority: -100
+    then:
+      - script.execute: initstates
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+logger:
+  #  hardware_uart: UART2
+  level: DEBUG
+  logs:
+    binary_sensor: INFO
+    light: INFO
+    script: INFO
+    switch: INFO
+    tx_ultimate_touch: INFO
+    uart_debug: INFO
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+api:
+  encryption:
+    key: ${api_key}
+    
+# Enable fallback hotspot (captive portal) in case wifi connection fails
+# ap:
+#   ssid: ${fallback_ap_ssid}
+#   password: ${fallback_ap_password}
+captive_portal:
+ota:
+  - platform: ${ota_platform}
+    password: ${ota_password}
+
+web_server:
+  port: 80
+
+
+external_components:
+  - source:  
+      type: git
+      url: https://github.com/harms-haus/sonoff-tx-ultimate-for-esphome
+      ref: main
+    components: [tx_ultimate_touch]
+
+globals:
+  - id: button_long_touch_delay_ms
+    type: unsigned int
+    restore_value: true
+    initial_value: "1000"
+
+switch:
+  # relays
+  - id: relay_1
+    platform: gpio
+    name: "Button 1 Relay"
+    pin: ${relay_1_pin}
+    restore_mode: RESTORE_DEFAULT_ON
+  - id: relay_2
+    platform: gpio
+    name: "Button 2 Relay"
+    pin: ${relay_2_pin}
+    restore_mode: RESTORE_DEFAULT_ON
+  - id: relay_3
+    platform: gpio
+    name: "Button 3 Relay"
+    pin: ${relay_3_pin}
+    restore_mode: RESTORE_DEFAULT_ON
+  - id: relay_4
+    platform: gpio
+    name: "Button 4 Relay"
+    pin: ${relay_4_pin}
+    restore_mode: RESTORE_DEFAULT_ON
+
+  # vibration motor
+  - id: motor
+    platform: gpio
+    pin: ${vibra_motor_pin}
+    name: "Vibration"
+    restore_mode: ALWAYS_OFF
+    on_turn_on:
+      - delay: ${vibra_time}
+      - switch.turn_off: motor
+
+  # power
+  - id: pa_power
+    platform: gpio
+    pin: ${pa_power_pin}
+    name: "PA Power"
+    internal: true
+    restore_mode: ALWAYS_ON
+  - id: touch_power
+    platform: gpio
+    name: "touch panel power"
+    pin:
+      number: ${touchpanel_power_pin}
+      inverted: true
+    internal: true
+    restore_mode: RESTORE_DEFAULT_ON
+
+  - id: restartbutton
+    platform: restart
+    name: "Restart"
+    internal: false
+
+
+light:
+  # hardware LED strip
+  - id: leds
+    platform: neopixelbus
+    type: GRB
+    variant: WS2812       
+    pin: ${led_pin}
+    num_leds: 32
+    name: "LEDs"
+    default_transition_length: 0s
+    effects:
+      - addressable_rainbow:
+          name: "Rainbow"
+          speed: 30
+          width: 8
+      - pulse:
+          name: "Pulse"
+          transition_length: 1.4s
+          update_interval: 1s
+
+  # button partitions (left/right side of each button)
+  - id: button_1_leds
+    platform: partition
+    name: "LEDs Button 1"
+    internal: false
+    segments:  
+      - id: leds
+        from: 31
+        to: 31
+      - id: leds
+        from: 0
+        to: 0
+      - id: leds
+        from: 23
+        to: 24
+  - id: button_2_leds
+    platform: partition
+    name: "LEDs Button 2"
+    internal: false
+    segments:
+      - id: leds
+        from: 1
+        to: 2
+      - id: leds
+        from: 21
+        to: 22
+  - id: button_3_leds
+    platform: partition
+    name: "LEDs Button 3"
+    internal: false
+    segments:
+      - id: leds
+        from: 5
+        to: 6
+      - id: leds
+        from: 17
+        to: 18
+  - id: button_4_leds
+    platform: partition
+    name: "LEDs Button 4"
+    internal: false
+    segments:
+      - id: leds
+        from: 7
+        to: 8
+      - id: leds
+        from: 15
+        to: 16
+
+  # sides of the panel
+  - id: leds_right
+    platform: partition
+    name: "LEDs Right"
+    internal: false
+    segments:
+      - id: leds
+        from: 31
+        to: 31
+      - id: leds
+        from: 0
+        to: 9
+  - id: leds_bottom
+    platform: partition
+    name: "LEDs Bottom"
+    internal: false
+    segments:
+      - id: leds
+        from: 9
+        to: 14
+  - id: leds_left
+    platform: partition
+    name: "LEDs Left"
+    internal: false
+    segments:
+      - id: leds
+        from: 15
+        to: 24
+  - id: leds_top
+    platform: partition
+    name: "LEDs Top"
+    internal: false
+    segments:
+      - id: leds
+        from: 25
+        to: 30
+    
+  # notify areas
+  - id: notify_leds_right
+    platform: partition
+    name: "Notify LEDs Right"
+    internal: false
+    segments:
+      - id: leds
+        from: 3
+        to: 4
+  - id: notify_leds_bottom
+    platform: partition
+    name: "Notify LEDs Bottom"
+    internal: false
+    segments:
+      - id: leds
+        from: 10
+        to: 13
+  - id: notify_leds_left
+    platform: partition
+    name: "Notify LEDs Left"
+    internal: false
+    segments:
+      - id: leds
+        from: 19
+        to: 20
+  - id: notify_leds_top
+    platform: partition
+    name: "Notify LEDs Top"
+    internal: false
+    segments:
+      - id: leds
+        from: 26
+        to: 29
+    
+
+sensor:
+  - id: touch_x
+    platform: template
+    name: Touch (x)
+    unit_of_measurement: "x"
+    icon: "mdi:crosshairs"
+    state_class: "measurement"
+    accuracy_decimals: 1
+    filters:
+      - delta: 0.1
+  - id: touch_state
+    platform: template
+    name: Touch State
+    icon: "mdi:state-machine"
+
+number:
+  - id: button_long_touch_delay
+    name: "Long-Touch Delay"
+    platform: template
+    unit_of_measurement: "ms"
+    mode: SLIDER
+    min_value: 10
+    max_value: 3000
+    step: 10
+    device_class: duration
+    lambda: !lambda return id(button_long_touch_delay_ms);
+    set_action:
+      then:
+        - lambda: !lambda id(button_long_touch_delay_ms) = x;
+
+text_sensor:
+  - id: button_1_touch
+    platform: template
+    name: "Button 1 Event"
+    icon: "mdi:gesture-tap"
+  - id: button_2_touch
+    platform: template
+    name: "Button 2 Event"
+    icon: "mdi:gesture-tap"
+  - id: button_3_touch
+    platform: template
+    name: "Button 3 Event"
+    icon: "mdi:gesture-tap"
+  - id: button_4_touch
+    platform: template
+    name: "Button 4 Event"
+    icon: "mdi:gesture-tap"
+
+
+media_player:
+  - id: media_out
+    platform: i2s_audio
+    name: Player
+    dac_type: external
+    i2s_dout_pin: ${audio_sdata_pin}
+    i2s_audio_id: audio_i2s
+    i2s_comm_fmt: lsb    
+    mode: mono
+
+i2s_audio:
+  id: audio_i2s
+  i2s_lrclk_pin: ${audio_lrclk_pin}
+  i2s_bclk_pin: ${audio_bclk_pin}
+
+uart:
+  tx_pin: ${uart_tx_pin}
+  rx_pin: ${uart_rx_pin}
+  id: my_uart
+  baud_rate: 115200
+  data_bits: 8
+  stop_bits: 1
+  parity: NONE
+  debug:
+    direction: RX
+    dummy_receiver: false
+    after:
+      timeout: 2s
+      bytes: 2048
+    sequence:
+      - lambda: UARTDebug::log_hex(direction, bytes, ' ');
+
+binary_sensor:
+  - id: button_1
+    platform: template
+    name: "Button 1 Touch"
+    on_press:
+      - text_sensor.template.publish: 
+          id: button_1_touch
+          state: pressed
+      - delay: !lambda return id(button_long_touch_delay_ms);
+      - if:
+          condition:
+            - lambda: !lambda return id(button_1_touch).state == "pressed";
+          then:
+            - text_sensor.template.publish:
+                id: button_1_touch
+                state: long_pressed
+          else:
+            - text_sensor.template.publish:
+                id: button_1_touch
+                state: released
+      - delay: !lambda return id(button_long_touch_delay_ms) * 9;
+      - binary_sensor.template.publish:
+          id: button_1
+          state: OFF
+    on_release:
+      - if:
+          condition:
+            - lambda: !lambda return id(button_1_touch).state == "pressed";
+          then:
+            - text_sensor.template.publish:
+                id: button_1_touch
+                state: "released"
+          else:
+            - if:
+                condition:
+                  - lambda: !lambda return id(button_1_touch).state == "long_pressed";
+                then:
+                  - text_sensor.template.publish:
+                      id: button_1_touch
+                      state: "long_released"
+  - id: button_2
+    platform: template
+    name: "Button 2 Touch"
+    on_press:
+      - text_sensor.template.publish: 
+          id: button_2_touch
+          state: pressed
+      - delay: !lambda return id(button_long_touch_delay_ms);
+      - if:
+          condition:
+            - lambda: !lambda return id(button_2_touch).state == "pressed";
+          then:
+            - text_sensor.template.publish:
+                id: button_2_touch
+                state: long_pressed
+          else:
+            - text_sensor.template.publish:
+                id: button_2_touch
+                state: released
+      - delay: !lambda return id(button_long_touch_delay_ms) * 9;
+      - binary_sensor.template.publish:
+          id: button_2
+          state: OFF
+    on_release:
+      - if:
+          condition:
+            - lambda: !lambda return id(button_2_touch).state == "pressed";
+          then:
+            - text_sensor.template.publish:
+                id: button_2_touch
+                state: "released"
+          else:
+            - if:
+                condition:
+                  - lambda: !lambda return id(button_2_touch).state == "long_pressed";
+                then:
+                  - text_sensor.template.publish:
+                      id: button_2_touch
+                      state: "long_released"
+  - id: button_3
+    platform: template
+    name: "Button 3 Touch"
+    on_press:
+      - text_sensor.template.publish: 
+          id: button_3_touch
+          state: pressed
+      - delay: !lambda return id(button_long_touch_delay_ms);
+      - if:
+          condition:
+            - lambda: !lambda return id(button_3_touch).state == "pressed";
+          then:
+            - text_sensor.template.publish:
+                id: button_3_touch
+                state: long_pressed
+          else:
+            - text_sensor.template.publish:
+                id: button_3_touch
+                state: released
+      - delay: !lambda return id(button_long_touch_delay_ms) * 9;
+      - binary_sensor.template.publish:
+          id: button_3
+          state: OFF
+    on_release:
+      - if:
+          condition:
+            - lambda: !lambda return id(button_3_touch).state == "pressed";
+          then:
+            - text_sensor.template.publish:
+                id: button_3_touch
+                state: "released"
+          else:
+            - if:
+                condition:
+                  - lambda: !lambda return id(button_3_touch).state == "long_pressed";
+                then:
+                  - text_sensor.template.publish:
+                      id: button_3_touch
+                      state: "long_released"
+  - id: button_4
+    platform: template
+    name: "Button 4 Touch"
+    on_press:
+      - text_sensor.template.publish: 
+          id: button_4_touch
+          state: pressed
+      - delay: !lambda return id(button_long_touch_delay_ms);
+      - if:
+          condition:
+            - lambda: !lambda return id(button_4_touch).state == "pressed";
+          then:
+            - text_sensor.template.publish:
+                id: button_4_touch
+                state: long_pressed
+          else:
+            - text_sensor.template.publish:
+                id: button_4_touch
+                state: released
+      - delay: !lambda return id(button_long_touch_delay_ms) * 9;
+      - binary_sensor.template.publish:
+          id: button_4
+          state: OFF
+    on_release:
+      - if:
+          condition:
+            - lambda: !lambda return id(button_4_touch).state == "pressed";
+          then:
+            - text_sensor.template.publish:
+                id: button_4_touch
+                state: "released"
+          else:
+            - if:
+                condition:
+                  - lambda: !lambda return id(button_4_touch).state == "long_pressed";
+                then:
+                  - text_sensor.template.publish:
+                      id: button_4_touch
+                      state: "long_released"
+  - id: swipe_left
+    platform: template
+    name: "Swipe left"
+    on_press:
+      - delay: !lambda return id(button_long_touch_delay_ms);
+      - binary_sensor.template.publish:
+          id: swipe_left
+          state: OFF
+  - id: swipe_right
+    platform: template
+    name: "Swipe_right"
+    on_press:
+      - delay: !lambda return id(button_long_touch_delay_ms);
+      - binary_sensor.template.publish:
+          id: swipe_right
+          state: OFF
+  - id: multi_touch
+    platform: template
+    name: "Multi Touch"
+    on_press:
+      - delay: !lambda return id(button_long_touch_delay_ms);
+      - binary_sensor.template.publish:
+          id: multi_touch
+          state: OFF
+
+tx_ultimate_touch:
+  id: tx_touch
+  uart: my_uart
+
+  on_press:
+    - then:
+      - lambda: !lambda id(touch_x).publish_state(touch.x);
+      - lambda: !lambda id(touch_state).publish_state(touch.state);
+      # - lambda: !lambda id(touch_y).publish_state(touch.y);
+      - if:
+          condition:
+            lambda: !lambda return touch.x <= 2;
+          then:
+            - binary_sensor.template.publish:
+                id: button_1
+                state: ON
+          else:
+            - if:
+                condition:
+                  lambda: !lambda return touch.x <= 5;
+                then:
+                  - binary_sensor.template.publish:
+                      id: button_2
+                      state: ON
+                else:
+                  - if:
+                      condition:
+                        lambda: !lambda return touch.x <= 8;
+                      then:
+                        - binary_sensor.template.publish:
+                            id: button_3
+                            state: ON
+                      else:
+                        - binary_sensor.template.publish:
+                            id: button_4
+                            state: ON
+      - lambda: !lambda >
+          ESP_LOGD("tx_ultimate_touch.on_press", "Touch Position: %d / State: %d", touch.x, touch.state);
+
+  on_release:
+    - then:
+      - lambda: !lambda id(touch_x).publish_state(touch.x);
+      - lambda: !lambda id(touch_state).publish_state(touch.state);
+      # - lambda: !lambda id(touch_y).publish_state(touch.y);
+      - if:
+          condition:
+            lambda: !lambda return touch.x <= 2;
+          then:
+            - binary_sensor.template.publish:
+                id: button_1
+                state: OFF
+          else:
+            - if:
+                condition:
+                  lambda: !lambda return touch.x <= 5;
+                then:
+                  - binary_sensor.template.publish:
+                      id: button_2
+                      state: OFF
+                else:
+                  - if:
+                      condition:
+                        lambda: !lambda return touch.x <= 8;
+                      then:
+                        - binary_sensor.template.publish:
+                            id: button_3
+                            state: OFF
+                      else:
+                        - binary_sensor.template.publish:
+                            id: button_4
+                            state: OFF
+      - lambda: !lambda >
+          ESP_LOGD("tx_ultimate_touch.on_release", "Release Position: %d / State: %d", touch.x, touch.state);
+
+  on_swipe_left:
+    - then:
+      - lambda: !lambda id(touch_x).publish_state(touch.x);
+      - lambda: !lambda id(touch_state).publish_state(touch.state);
+      # - lambda: !lambda id(touch_y).publish_state(touch.y);
+      - binary_sensor.template.publish:
+          id: swipe_left
+          state: ON
+      - lambda: !lambda >
+          ESP_LOGD("tx_ultimate_touch.on_swipe_left", "Swipe Left Position: %d / State: %d", touch.x, touch.state);
+
+  on_swipe_right:
+    - then:
+      - lambda: !lambda id(touch_x).publish_state(touch.x);
+      - lambda: !lambda id(touch_state).publish_state(touch.state);
+      # - lambda: !lambda id(touch_y).publish_state(touch.y);
+      - binary_sensor.template.publish:
+          id: swipe_right
+          state: ON
+      - lambda: !lambda >
+          ESP_LOGD("tx_ultimate_touch.on_swipe_right", "Swipe Right Position: %d / State: %d", touch.x, touch.state);
+
+  on_full_touch_release:
+    - then:
+      - lambda: !lambda id(touch_x).publish_state(touch.x);
+      - lambda: !lambda id(touch_state).publish_state(touch.state);
+      # - lambda: !lambda id(touch_y).publish_state(touch.y);
+      - binary_sensor.template.publish:
+          id: multi_touch
+          state: ON
+      - lambda: !lambda >
+          ESP_LOGD("tx_ultimate_touch.on_full_touch_release", "Full Touch Release Position: %d / State: %d", touch.x, touch.state);
+
+  on_long_touch_release:      
+    - then:
+      - lambda: !lambda id(touch_x).publish_state(touch.x);
+      - lambda: !lambda id(touch_state).publish_state(touch.state);
+      # - lambda: !lambda id(touch_y).publish_state(touch.y);
+      - if:
+          condition:
+            lambda: !lambda return touch.x <= 2;
+          then:
+            - binary_sensor.template.publish:
+                id: button_1
+                state: OFF
+          else:
+            - if:
+                condition:
+                  lambda: !lambda return touch.x <= 5;
+                then:
+                  - binary_sensor.template.publish:
+                      id: button_2
+                      state: OFF
+                else:
+                  - if:
+                      condition:
+                        lambda: !lambda return touch.x <= 8;
+                      then:
+                        - binary_sensor.template.publish:
+                            id: button_3
+                            state: OFF
+                      else:
+                        - binary_sensor.template.publish:
+                            id: button_4
+                            state: OFF
+      - lambda: !lambda >
+          ESP_LOGD("tx_ultimate_touch.on_release", "Release Position: %d / State: %d", touch.x, touch.state);
+      - lambda: !lambda >
+          ESP_LOGD("tx_ultimate_touch.on_long_touch_release", "Long Touch Release Position: %d / State: %d", touch.x, touch.state);
+
+script:
+  - id: initstates
+    mode: restart
+    then:
+      - lambda: !lambda |-
+          ESP_LOGD("script", "Initializing...");
+
+
+  relay_1_pin: GPIO18
+  relay_2_pin: GPIO17
+  relay_3_pin: GPIO27
+  relay_4_pin: GPIO23
+
+  vibra_motor_pin: GPIO21
+  pa_power_pin: GPIO26
+
+  led_pin: GPIO13
+  status_led_pin: GPIO33
+
+  uart_tx_pin: GPIO19
+  uart_rx_pin: GPIO22
+
+  audio_lrclk_pin: GPIO4
+  audio_bclk_pin: GPIO2
+  audio_sdata_pin: GPIO15
+
+  touchpanel_power_pin: GPIO5
+  
+  fallback_ap_ssid: "txultimate-ap"
+  fallback_ap_password: "Tk3375kUzefs"
+
+  ota_platform: "esphome"
+  ota_password: "xxxxxxxxx"
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+  project:
+    name: smarthomeyourself.tx_ultimate
+    version: "1.0"
+
+  on_boot:
+    priority: -100
+    then:
+      - script.execute: initstates
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+logger:
+  #  hardware_uart: UART2
+  level: DEBUG
+  logs:
+    binary_sensor: INFO
+    light: INFO
+    script: INFO
+    switch: INFO
+    tx_ultimate_touch: INFO
+    uart_debug: INFO
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+api:
+  encryption:
+    key: ${api_key}
+    
+# Enable fallback hotspot (captive portal) in case wifi connection fails
+# ap:
+#   ssid: ${fallback_ap_ssid}
+#   password: ${fallback_ap_password}
+captive_portal:
+ota:
+  - platform: ${ota_platform}
+    password: ${ota_password}
+
+web_server:
+  port: 80
+
+
+external_components:
+  - source:  
+      type: git
+      url: https://github.com/harms-haus/sonoff-tx-ultimate-for-esphome
+      ref: main
+    components: [tx_ultimate_touch]
+
+globals:
+  - id: button_long_touch_delay_ms
+    type: unsigned int
+    restore_value: true
+    initial_value: "1000"
+
+switch:
+  # relays
+  - id: relay_1
+    platform: gpio
+    name: "Button 1 Relay"
+    pin: ${relay_1_pin}
+    restore_mode: RESTORE_DEFAULT_ON
+  - id: relay_2
+    platform: gpio
+    name: "Button 2 Relay"
+    pin: ${relay_2_pin}
+    restore_mode: RESTORE_DEFAULT_ON
+  - id: relay_3
+    platform: gpio
+    name: "Button 3 Relay"
+    pin: ${relay_3_pin}
+    restore_mode: RESTORE_DEFAULT_ON
+  - id: relay_4
+    platform: gpio
+    name: "Button 4 Relay"
+    pin: ${relay_4_pin}
+    restore_mode: RESTORE_DEFAULT_ON
+
+  # vibration motor
+  - id: motor
+    platform: gpio
+    pin: ${vibra_motor_pin}
+    name: "Vibration"
+    restore_mode: ALWAYS_OFF
+    on_turn_on:
+      - delay: ${vibra_time}
+      - switch.turn_off: motor
+
+  # power
+  - id: pa_power
+    platform: gpio
+    pin: ${pa_power_pin}
+    name: "PA Power"
+    internal: true
+    restore_mode: ALWAYS_ON
+  - id: touch_power
+    platform: gpio
+    name: "touch panel power"
+    pin:
+      number: ${touchpanel_power_pin}
+      inverted: true
+    internal: true
+    restore_mode: RESTORE_DEFAULT_ON
+
+  - id: restartbutton
+    platform: restart
+    name: "Restart"
+    internal: false
+
+
+light:
+  # hardware LED strip
+  - id: leds
+    platform: neopixelbus
+    type: GRB
+    variant: WS2812       
+    pin: ${led_pin}
+    num_leds: 32
+    name: "LEDs"
+    default_transition_length: 0s
+    effects:
+      - addressable_rainbow:
+          name: "Rainbow"
+          speed: 30
+          width: 8
+      - pulse:
+          name: "Pulse"
+          transition_length: 1.4s
+          update_interval: 1s
+
+  # button partitions (left/right side of each button)
+  - id: button_1_leds
+    platform: partition
+    name: "LEDs Button 1"
+    internal: false
+    segments:  
+      - id: leds
+        from: 31
+        to: 31
+      - id: leds
+        from: 0
+        to: 0
+      - id: leds
+        from: 23
+        to: 24
+  - id: button_2_leds
+    platform: partition
+    name: "LEDs Button 2"
+    internal: false
+    segments:
+      - id: leds
+        from: 1
+        to: 2
+      - id: leds
+        from: 21
+        to: 22
+  - id: button_3_leds
+    platform: partition
+    name: "LEDs Button 3"
+    internal: false
+    segments:
+      - id: leds
+        from: 5
+        to: 6
+      - id: leds
+        from: 17
+        to: 18
+  - id: button_4_leds
+    platform: partition
+    name: "LEDs Button 4"
+    internal: false
+    segments:
+      - id: leds
+        from: 7
+        to: 8
+      - id: leds
+        from: 15
+        to: 16
+
+  # sides of the panel
+  - id: leds_right
+    platform: partition
+    name: "LEDs Right"
+    internal: false
+    segments:
+      - id: leds
+        from: 31
+        to: 31
+      - id: leds
+        from: 0
+        to: 9
+  - id: leds_bottom
+    platform: partition
+    name: "LEDs Bottom"
+    internal: false
+    segments:
+      - id: leds
+        from: 9
+        to: 14
+  - id: leds_left
+    platform: partition
+    name: "LEDs Left"
+    internal: false
+    segments:
+      - id: leds
+        from: 15
+        to: 24
+  - id: leds_top
+    platform: partition
+    name: "LEDs Top"
+    internal: false
+    segments:
+      - id: leds
+        from: 25
+        to: 30
+    
+  # notify areas
+  - id: notify_leds_right
+    platform: partition
+    name: "Notify LEDs Right"
+    internal: false
+    segments:
+      - id: leds
+        from: 3
+        to: 4
+  - id: notify_leds_bottom
+    platform: partition
+    name: "Notify LEDs Bottom"
+    internal: false
+    segments:
+      - id: leds
+        from: 10
+        to: 13
+  - id: notify_leds_left
+    platform: partition
+    name: "Notify LEDs Left"
+    internal: false
+    segments:
+      - id: leds
+        from: 19
+        to: 20
+  - id: notify_leds_top
+    platform: partition
+    name: "Notify LEDs Top"
+    internal: false
+    segments:
+      - id: leds
+        from: 26
+        to: 29
+    
+
+sensor:
+  - id: touch_x
+    platform: template
+    name: Touch (x)
+    unit_of_measurement: "x"
+    icon: "mdi:crosshairs"
+    state_class: "measurement"
+    accuracy_decimals: 1
+    filters:
+      - delta: 0.1
+  - id: touch_state
+    platform: template
+    name: Touch State
+    icon: "mdi:state-machine"
+
+number:
+  - id: button_long_touch_delay
+    name: "Long-Touch Delay"
+    platform: template
+    unit_of_measurement: "ms"
+    mode: SLIDER
+    min_value: 10
+    max_value: 3000
+    step: 10
+    device_class: duration
+    lambda: !lambda return id(button_long_touch_delay_ms);
+    set_action:
+      then:
+        - lambda: !lambda id(button_long_touch_delay_ms) = x;
+
+text_sensor:
+  - id: button_1_touch
+    platform: template
+    name: "Button 1 Event"
+    icon: "mdi:gesture-tap"
+  - id: button_2_touch
+    platform: template
+    name: "Button 2 Event"
+    icon: "mdi:gesture-tap"
+  - id: button_3_touch
+    platform: template
+    name: "Button 3 Event"
+    icon: "mdi:gesture-tap"
+  - id: button_4_touch
+    platform: template
+    name: "Button 4 Event"
+    icon: "mdi:gesture-tap"
+
+
+media_player:
+  - id: media_out
+    platform: i2s_audio
+    name: Player
+    dac_type: external
+    i2s_dout_pin: ${audio_sdata_pin}
+    i2s_audio_id: audio_i2s
+    i2s_comm_fmt: lsb    
+    mode: mono
+
+i2s_audio:
+  id: audio_i2s
+  i2s_lrclk_pin: ${audio_lrclk_pin}
+  i2s_bclk_pin: ${audio_bclk_pin}
+
+uart:
+  tx_pin: ${uart_tx_pin}
+  rx_pin: ${uart_rx_pin}
+  id: my_uart
+  baud_rate: 115200
+  data_bits: 8
+  stop_bits: 1
+  parity: NONE
+  debug:
+    direction: RX
+    dummy_receiver: false
+    after:
+      timeout: 2s
+      bytes: 2048
+    sequence:
+      - lambda: UARTDebug::log_hex(direction, bytes, ' ');
+
+binary_sensor:
+  - id: button_1
+    platform: template
+    name: "Button 1 Touch"
+    on_press:
+      - text_sensor.template.publish: 
+          id: button_1_touch
+          state: pressed
+      - delay: !lambda return id(button_long_touch_delay_ms);
+      - if:
+          condition:
+            - lambda: !lambda return id(button_1_touch).state == "pressed";
+          then:
+            - text_sensor.template.publish:
+                id: button_1_touch
+                state: long_pressed
+          else:
+            - text_sensor.template.publish:
+                id: button_1_touch
+                state: released
+      - delay: !lambda return id(button_long_touch_delay_ms) * 9;
+      - binary_sensor.template.publish:
+          id: button_1
+          state: OFF
+    on_release:
+      - if:
+          condition:
+            - lambda: !lambda return id(button_1_touch).state == "pressed";
+          then:
+            - text_sensor.template.publish:
+                id: button_1_touch
+                state: "released"
+          else:
+            - if:
+                condition:
+                  - lambda: !lambda return id(button_1_touch).state == "long_pressed";
+                then:
+                  - text_sensor.template.publish:
+                      id: button_1_touch
+                      state: "long_released"
+  - id: button_2
+    platform: template
+    name: "Button 2 Touch"
+    on_press:
+      - text_sensor.template.publish: 
+          id: button_2_touch
+          state: pressed
+      - delay: !lambda return id(button_long_touch_delay_ms);
+      - if:
+          condition:
+            - lambda: !lambda return id(button_2_touch).state == "pressed";
+          then:
+            - text_sensor.template.publish:
+                id: button_2_touch
+                state: long_pressed
+          else:
+            - text_sensor.template.publish:
+                id: button_2_touch
+                state: released
+      - delay: !lambda return id(button_long_touch_delay_ms) * 9;
+      - binary_sensor.template.publish:
+          id: button_2
+          state: OFF
+    on_release:
+      - if:
+          condition:
+            - lambda: !lambda return id(button_2_touch).state == "pressed";
+          then:
+            - text_sensor.template.publish:
+                id: button_2_touch
+                state: "released"
+          else:
+            - if:
+                condition:
+                  - lambda: !lambda return id(button_2_touch).state == "long_pressed";
+                then:
+                  - text_sensor.template.publish:
+                      id: button_2_touch
+                      state: "long_released"
+  - id: button_3
+    platform: template
+    name: "Button 3 Touch"
+    on_press:
+      - text_sensor.template.publish: 
+          id: button_3_touch
+          state: pressed
+      - delay: !lambda return id(button_long_touch_delay_ms);
+      - if:
+          condition:
+            - lambda: !lambda return id(button_3_touch).state == "pressed";
+          then:
+            - text_sensor.template.publish:
+                id: button_3_touch
+                state: long_pressed
+          else:
+            - text_sensor.template.publish:
+                id: button_3_touch
+                state: released
+      - delay: !lambda return id(button_long_touch_delay_ms) * 9;
+      - binary_sensor.template.publish:
+          id: button_3
+          state: OFF
+    on_release:
+      - if:
+          condition:
+            - lambda: !lambda return id(button_3_touch).state == "pressed";
+          then:
+            - text_sensor.template.publish:
+                id: button_3_touch
+                state: "released"
+          else:
+            - if:
+                condition:
+                  - lambda: !lambda return id(button_3_touch).state == "long_pressed";
+                then:
+                  - text_sensor.template.publish:
+                      id: button_3_touch
+                      state: "long_released"
+  - id: button_4
+    platform: template
+    name: "Button 4 Touch"
+    on_press:
+      - text_sensor.template.publish: 
+          id: button_4_touch
+          state: pressed
+      - delay: !lambda return id(button_long_touch_delay_ms);
+      - if:
+          condition:
+            - lambda: !lambda return id(button_4_touch).state == "pressed";
+          then:
+            - text_sensor.template.publish:
+                id: button_4_touch
+                state: long_pressed
+          else:
+            - text_sensor.template.publish:
+                id: button_4_touch
+                state: released
+      - delay: !lambda return id(button_long_touch_delay_ms) * 9;
+      - binary_sensor.template.publish:
+          id: button_4
+          state: OFF
+    on_release:
+      - if:
+          condition:
+            - lambda: !lambda return id(button_4_touch).state == "pressed";
+          then:
+            - text_sensor.template.publish:
+                id: button_4_touch
+                state: "released"
+          else:
+            - if:
+                condition:
+                  - lambda: !lambda return id(button_4_touch).state == "long_pressed";
+                then:
+                  - text_sensor.template.publish:
+                      id: button_4_touch
+                      state: "long_released"
+  - id: swipe_left
+    platform: template
+    name: "Swipe left"
+    on_press:
+      - delay: !lambda return id(button_long_touch_delay_ms);
+      - binary_sensor.template.publish:
+          id: swipe_left
+          state: OFF
+  - id: swipe_right
+    platform: template
+    name: "Swipe_right"
+    on_press:
+      - delay: !lambda return id(button_long_touch_delay_ms);
+      - binary_sensor.template.publish:
+          id: swipe_right
+          state: OFF
+  - id: multi_touch
+    platform: template
+    name: "Multi Touch"
+    on_press:
+      - delay: !lambda return id(button_long_touch_delay_ms);
+      - binary_sensor.template.publish:
+          id: multi_touch
+          state: OFF
+
+tx_ultimate_touch:
+  id: tx_touch
+  uart: my_uart
+
+  on_press:
+    - then:
+      - lambda: !lambda id(touch_x).publish_state(touch.x);
+      - lambda: !lambda id(touch_state).publish_state(touch.state);
+      # - lambda: !lambda id(touch_y).publish_state(touch.y);
+      - if:
+          condition:
+            lambda: !lambda return touch.x <= 2;
+          then:
+            - binary_sensor.template.publish:
+                id: button_1
+                state: ON
+          else:
+            - if:
+                condition:
+                  lambda: !lambda return touch.x <= 5;
+                then:
+                  - binary_sensor.template.publish:
+                      id: button_2
+                      state: ON
+                else:
+                  - if:
+                      condition:
+                        lambda: !lambda return touch.x <= 8;
+                      then:
+                        - binary_sensor.template.publish:
+                            id: button_3
+                            state: ON
+                      else:
+                        - binary_sensor.template.publish:
+                            id: button_4
+                            state: ON
+      - lambda: !lambda >
+          ESP_LOGD("tx_ultimate_touch.on_press", "Touch Position: %d / State: %d", touch.x, touch.state);
+
+  on_release:
+    - then:
+      - lambda: !lambda id(touch_x).publish_state(touch.x);
+      - lambda: !lambda id(touch_state).publish_state(touch.state);
+      # - lambda: !lambda id(touch_y).publish_state(touch.y);
+      - if:
+          condition:
+            lambda: !lambda return touch.x <= 2;
+          then:
+            - binary_sensor.template.publish:
+                id: button_1
+                state: OFF
+          else:
+            - if:
+                condition:
+                  lambda: !lambda return touch.x <= 5;
+                then:
+                  - binary_sensor.template.publish:
+                      id: button_2
+                      state: OFF
+                else:
+                  - if:
+                      condition:
+                        lambda: !lambda return touch.x <= 8;
+                      then:
+                        - binary_sensor.template.publish:
+                            id: button_3
+                            state: OFF
+                      else:
+                        - binary_sensor.template.publish:
+                            id: button_4
+                            state: OFF
+      - lambda: !lambda >
+          ESP_LOGD("tx_ultimate_touch.on_release", "Release Position: %d / State: %d", touch.x, touch.state);
+
+  on_swipe_left:
+    - then:
+      - lambda: !lambda id(touch_x).publish_state(touch.x);
+      - lambda: !lambda id(touch_state).publish_state(touch.state);
+      # - lambda: !lambda id(touch_y).publish_state(touch.y);
+      - binary_sensor.template.publish:
+          id: swipe_left
+          state: ON
+      - lambda: !lambda >
+          ESP_LOGD("tx_ultimate_touch.on_swipe_left", "Swipe Left Position: %d / State: %d", touch.x, touch.state);
+
+  on_swipe_right:
+    - then:
+      - lambda: !lambda id(touch_x).publish_state(touch.x);
+      - lambda: !lambda id(touch_state).publish_state(touch.state);
+      # - lambda: !lambda id(touch_y).publish_state(touch.y);
+      - binary_sensor.template.publish:
+          id: swipe_right
+          state: ON
+      - lambda: !lambda >
+          ESP_LOGD("tx_ultimate_touch.on_swipe_right", "Swipe Right Position: %d / State: %d", touch.x, touch.state);
+
+  on_full_touch_release:
+    - then:
+      - lambda: !lambda id(touch_x).publish_state(touch.x);
+      - lambda: !lambda id(touch_state).publish_state(touch.state);
+      # - lambda: !lambda id(touch_y).publish_state(touch.y);
+      - binary_sensor.template.publish:
+          id: multi_touch
+          state: ON
+      - lambda: !lambda >
+          ESP_LOGD("tx_ultimate_touch.on_full_touch_release", "Full Touch Release Position: %d / State: %d", touch.x, touch.state);
+
+  on_long_touch_release:      
+    - then:
+      - lambda: !lambda id(touch_x).publish_state(touch.x);
+      - lambda: !lambda id(touch_state).publish_state(touch.state);
+      # - lambda: !lambda id(touch_y).publish_state(touch.y);
+      - if:
+          condition:
+            lambda: !lambda return touch.x <= 2;
+          then:
+            - binary_sensor.template.publish:
+                id: button_1
+                state: OFF
+          else:
+            - if:
+                condition:
+                  lambda: !lambda return touch.x <= 5;
+                then:
+                  - binary_sensor.template.publish:
+                      id: button_2
+                      state: OFF
+                else:
+                  - if:
+                      condition:
+                        lambda: !lambda return touch.x <= 8;
+                      then:
+                        - binary_sensor.template.publish:
+                            id: button_3
+                            state: OFF
+                      else:
+                        - binary_sensor.template.publish:
+                            id: button_4
+                            state: OFF
+      - lambda: !lambda >
+          ESP_LOGD("tx_ultimate_touch.on_release", "Release Position: %d / State: %d", touch.x, touch.state);
+      - lambda: !lambda >
+          ESP_LOGD("tx_ultimate_touch.on_long_touch_release", "Long Touch Release Position: %d / State: %d", touch.x, touch.state);
+
+script:
+  - id: initstates
+    mode: restart
+    then:
+      - lambda: !lambda |-
+          ESP_LOGD("script", "Initializing...");
+
